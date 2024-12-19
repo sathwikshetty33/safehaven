@@ -257,27 +257,112 @@ def tsunami(request):
 def floods(request):
     return render(request,'floods.html')
 
-@method_decorator(csrf_exempt, name='dispatch')
+@csrf_exempt
 @login_required
 def submit_distress(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            concern_type = data.get('concern_type', '')
-            custom_concern = data.get('custom_concern', '')
-            latitude = data.get('latitude', '')
-            longitude = data.get('longitude', '')
-
-            # Create the distress object
-            distress_obj = distress.objects.create(
+            new_distress = distress.objects.create(
                 user=request.user,
-                latitude=latitude,
-                longitude=longitude,
+                latitude=data.get('latitude'),
+                longitude=data.get('longitude')
             )
-            print("created")
-            # Additional logic based on concern type can be added here
-            return JsonResponse({'message': 'Distress submitted successfully.'}, status=200)
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Distress signal recorded successfully'
+            })
         except Exception as e:
-            print(f'Error: {e}')
-            return JsonResponse({'message': 'An error occurred.'}, status=500)
-    return JsonResponse({'message': 'Invalid request method.'}, status=400)
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            }, status=400)
+    return JsonResponse({
+        'status': 'error',
+        'message': 'Invalid request method'
+    }, status=405)
+
+
+client = Groq(api_key=key)
+
+
+def validate_alert_with_groq(latitude, longitude, calamity_type):
+    try:
+        # Construct the prompt for Groq
+        prompt = f"""Given the following information about a potential disaster alert:
+        Location: Latitude {latitude}, Longitude {longitude}
+        Type of Calamity: {calamity_type}
+
+        Based on this information, analyze if this could be a genuine alert. Consider:
+        1. Is this location prone to {calamity_type}?
+        2. Are there any known active disasters in this region?
+        3. Is this a reasonable alert given the geographical context?
+
+        Respond with only 'yes' or 'no'.
+        """
+
+        # Make API call to Groq
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            model="mixtral-8x7b-32768",  # or your preferred model
+            temperature=0.1,
+            max_tokens=1,
+        )
+
+        # Get the response
+        response = chat_completion.choices[0].message.content.strip().lower()
+        return response == 'yes'
+
+    except Exception as e:
+        print(f"Groq API Error: {str(e)}")
+        return False  # Default to False in case of API errors
+
+@csrf_exempt
+@login_required
+def submit_distress(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            latitude = data.get('latitude')
+            longitude = data.get('longitude')
+            concern_type = data.get('concern_type')
+
+            # Validate alert with Groq API
+            is_valid = validate_alert_with_groq(latitude, longitude, concern_type)
+
+            if is_valid:
+                # Create distress object only if validated
+                new_distress = distress.objects.create(
+                    user=request.user,
+                    latitude=latitude,
+                    longitude=longitude
+                )
+                return JsonResponse({
+                    'status': 'success',
+                    'message': 'Distress signal validated and recorded successfully'
+                })
+            else:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Alert validation failed. Please verify your information.'
+                }, status=400)
+
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            }, status=400)
+
+    return JsonResponse({
+        'status': 'error',
+        'message': 'Invalid request method'
+    }, status=405)
+
+def distress_list(request):
+    dis = distress.objects.all()
+    return render(request, 'distress.html', {'dis': dis})

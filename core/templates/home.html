@@ -210,6 +210,7 @@
 </head>
 
 <body>
+{% csrf_token %}
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
@@ -255,7 +256,9 @@
                     <select id="concernType" class="form-select mb-3" onchange="toggleCustomConcern(this)">
                         <option value="">--Select--</option>
                         <option value="earthquake">Earthquake</option>
-                        <option value="other">Any Other Concern</option>
+                        <option value="tsunami">Tsunami</option>
+                        <option value="floods">Floods</option>
+                        <option value="cyclone">Cyclone</option>
                     </select>
                     <div id="customConcernDiv" class="mb-3 d-none">
                         <label for="customConcern" class="form-label">Please Describe Your Concern:</label>
@@ -346,7 +349,7 @@
                 (position) => {
                     userLatitude = position.coords.latitude;
                     userLongitude = position.coords.longitude;
-                    locationStatus.innerHTML = `Latitude: ${userLatitude}, Longitude: ${userLongitude}`;
+                    locationStatus.innerHTML = `Latitude: ${userLatitude.toFixed(6)}, Longitude: ${userLongitude.toFixed(6)}`;
                 },
                 (error) => {
                     locationStatus.innerHTML = 'Unable to fetch location. Please enable location services.';
@@ -358,30 +361,48 @@
         }
     }
 
-    // Call location fetching function on page load
-    document.addEventListener('DOMContentLoaded', fetchUserLocation);
+    // Show/hide alert dropdown
+    function toggleAlertDropdown() {
+        const dropdown = document.getElementById('alertDropdown');
+        dropdown.classList.toggle('show');
+        if (dropdown.classList.contains('show')) {
+            fetchUserLocation();
+        }
+    }
 
-    // Submit concern to Django
+    // Close alert dropdown
+    function closeAlertDropdown() {
+        document.getElementById('alertDropdown').classList.remove('show');
+    }
+
+    // Toggle custom concern textarea
+    function toggleCustomConcern(select) {
+        const customDiv = document.getElementById('customConcernDiv');
+        if (select.value === 'other') {
+            customDiv.classList.remove('d-none');
+        } else {
+            customDiv.classList.add('d-none');
+        }
+    }
+
+    // Get CSRF token
+    function getCSRFToken() {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        return csrfToken;
+    }
+
+    // Submit concern
     function submitConcern() {
-        const concernType = document.getElementById('concernType').value;
-        const customConcern = document.getElementById('customConcern').value;
-
         if (!userLatitude || !userLongitude) {
-            alert('Unable to fetch your location. Please try again.');
+            alert('Please allow location access to submit an alert.');
             return;
         }
 
+        const concernType = document.getElementById('concernType').value;
         if (!concernType) {
             alert('Please select a concern type.');
             return;
         }
-
-        const data = {
-            concern_type: concernType,
-            custom_concern: customConcern,
-            latitude: userLatitude,
-            longitude: userLongitude,
-        };
 
         fetch('/submit-distress/', {
             method: 'POST',
@@ -389,25 +410,31 @@
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCSRFToken(),
             },
-            body: JSON.stringify(data),
+            body: JSON.stringify({
+                latitude: userLatitude.toString(),
+                longitude: userLongitude.toString(),
+                concern_type: concernType,
+                custom_concern: document.getElementById('customConcern').value
+            }),
         })
-            .then((response) => {
-                if (response.ok) {
-                    alert('Your concern has been submitted. Thank you!');
-                } else {
-                    alert('Failed to submit your concern. Please try again later.');
-                }
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again later.');
-            });
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Alert submitted successfully. Help is on the way!');
+                closeAlertDropdown();
+            } else {
+                alert('Error submitting alert: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to submit alert. Please try again.');
+        });
     }
 
-    // Utility function to get CSRF token
-    function getCSRFToken() {
-        return document.querySelector('[name=csrfmiddlewaretoken]').value;
-    }
+    // Initialize location fetching on page load
+    document.addEventListener('DOMContentLoaded', fetchUserLocation);
+
 </script>
 
     </body> </html>
