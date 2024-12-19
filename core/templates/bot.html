@@ -198,7 +198,7 @@
     </div>
     <div class="chat-container">
         <div class="chat-header">
-            Conversation for {{ convo.post.post }} with InterXAI
+            Conversation for {{ convo.post.post }} with SafeHaven
         </div>
         <div class="chat-messages" id="chat-messages">
             {% for question in questions %}
@@ -250,7 +250,7 @@ async function sendMessage() {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error(HTTP error! status: ${response.status});
         }
 
         const data = await response.json();
@@ -267,7 +267,7 @@ async function sendMessage() {
  */
 function appendMessage(content, type) {
     const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
+    messageDiv.className = message ${type};
     messageDiv.innerHTML = `
         <div class="content">${content}</div>
         <div class="time">${new Date().toLocaleString()}</div>
