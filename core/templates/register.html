@@ -104,6 +104,15 @@
             {% csrf_token %}
 
             <div class="form-group">
+                {{ form.email }}
+                <label class="form-label mt-2" for="id_email">Enter email</label>
+                {% if form.email.errors %}
+                    <div class="text-danger">
+                        {{ form.email.errors }}
+                    </div>
+                {% endif %}
+            </div>
+            <div class="form-group">
                 {{ form.username }}
                 <label class="form-label mt-2" for="id_username">Enter username</label>
                 {% if form.username.errors %}

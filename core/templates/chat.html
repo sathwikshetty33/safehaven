@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Public Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+        }
+        #chat-container {
+            max-width: 800px;
+            margin: 50px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        #chat-log {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            border-bottom: 1px solid #ccc;
+        }
+        #chat-log p {
+            margin: 5px 0;
+        }
+        #chat-log strong {
+            color: #333;
+        }
+        #chat-form {
+            display: flex;
+            padding: 10px;
+            background: #f9f9f9;
+        }
+        #chat-message-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #chat-message-submit {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        #chat-message-submit:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <div id="chat-log">
+            {% for message in messages %}
+            <p><strong>{{ message.user.username }}:</strong> {{ message.message }}</p>
+            {% endfor %}
+        </div>
+
+        <form id="chat-form">
+            <input id="chat-message-input" type="text" placeholder="Type your message here...">
+            <button id="chat-message-submit" type="button">Send</button>
+        </form>
+    </div>
+
+    <script>
+        function fetchMessages() {
+            fetch('/chat/get_messages/')
+                .then(response => response.json())
+                .then(data => {
+                    const chatLog = document.getElementById('chat-log');
+                    chatLog.innerHTML = '';
+                    data.messages.forEach(msg => {
+                        chatLog.innerHTML += `<p><strong>${msg.username}:</strong> ${msg.message}</p>`;
+                    });
+                });
+        }
+
+        function sendMessage() {
+            const messageInput = document.getElementById('chat-message-input');
+            const message = messageInput.value.trim();
+
+            if (message) {
+                fetch('/chat/send/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: `message=${encodeURIComponent(message)}`,
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        fetchMessages();
+                        messageInput.value = '';
+                    }
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('chat-message-submit')?.addEventListener('click', sendMessage);
+
+            document.getElementById('chat-message-input')?.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // Refresh chat messages every 5 seconds
+            setInterval(fetchMessages, 5000);
+            fetchMessages();
+        });
+    </script>
+</body>
+</html>

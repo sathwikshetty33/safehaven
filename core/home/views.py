@@ -32,7 +32,7 @@ def login_view(request):
 
             if user is not None:
                 login(request, user)
-                return redirect('chatcreate',user.id)
+                return redirect('public_chat')
     else:
         form = CustomAuthenticationForm()
 
@@ -153,3 +153,40 @@ def chatcreate(request, userid):
         user=request.user  # Assuming a "user" ForeignKey in the conversation model
     )
     return redirect('chat', convo.id)
+@login_required
+def public_chat(request):
+    messages = ChatMessage.objects.all().order_by('timestamp')
+
+    # Adjust the query based on your model fields
+    ngo_users = ngo.objects.values_list('username', flat=True)  # Replace 'user__username' with 'username'
+
+    return render(request, 'chat.html', {
+        'messages': messages,
+        'ngo_users': list(ngo_users),  # Pass the list of usernames
+        'current_user': request.user.username,  # Pass the logged-in user's username
+    })
+@login_required
+def send_message(request):
+    if request.method == "POST":
+        user = request.user
+        try:
+            ngo_user = ngo.objects.get(username=user, verified=True)
+        except ngo.DoesNotExist:
+            return JsonResponse({'error': 'You are not authorized to send messages.'}, status=403)
+
+        message_content = request.POST.get('message', '').strip()
+        if not message_content:
+            return JsonResponse({'error': 'Message cannot be empty.'}, status=400)
+
+        message = ChatMessage.objects.create(user=user, message=message_content)
+        return JsonResponse({'username': user.username, 'message': message.message})
+    return JsonResponse({'error': 'Invalid request method.'}, status=405)
+
+@login_required
+def get_messages(request):
+    messages = ChatMessage.objects.order_by('-timestamp')[:50][::-1]
+    response_data = [
+        {'username': msg.user.username, 'message': msg.message, 'timestamp': msg.timestamp.strftime("%Y-%m-%d %H:%M:%S")}
+        for msg in messages
+    ]
+    return JsonResponse({'messages': response_data})
