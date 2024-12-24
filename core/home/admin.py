@@ -6,6 +6,5 @@ admin.site.register(questions)
 admin.site.register(conversation)
 admin.site.register(shelters)
 admin.site.register(distress)
-
-
+admin.site.register(ChatMessage)
 
