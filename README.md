@@ -39,7 +39,7 @@ A real-time disaster alert and management system built with Django that helps pe
 1. Clone the repository
 ```bash
 git clone https://github.com/sathwikshetty33/safehaven.git
-cd natural-calamity-alert
+cd core
 ```
 
 2. Create and activate virtual environment
